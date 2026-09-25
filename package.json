@@ -1,0 +1,20 @@
+{
+  "name": "v79-commerce",
+  "private": true,
+  "version": "1.0.0-rc.1",
+  "packageManager": "pnpm@10.9.0",
+  "scripts": {
+    "dev": "pnpm --filter @v79/commerce-domain build && pnpm --filter @v79/commerce-api dev",
+    "worker": "pnpm --filter @v79/commerce-domain build && pnpm --filter @v79/commerce-api worker",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:validate": "prisma validate"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  }
+}
