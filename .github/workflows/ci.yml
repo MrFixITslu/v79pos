@@ -23,3 +23,39 @@ jobs:
       - run: pnpm test
       - run: pnpm lint
       - run: docker build -t v79-commerce-ci .
+
+      - name: Validate production Compose stack
+        run: |
+          cat > .env <<'EOF'
+          NODE_ENV=production
+          PORT=8080
+          POSTGRES_PASSWORD=ci_database_password_2026
+          DATABASE_URL=postgresql://v79commerce:ci_database_password_2026@postgres:5432/v79commerce?schema=public
+          REDIS_URL=redis://redis:6379
+          AUTH_MODE=hub
+          JWT_ISSUER=https://hub.v79sl.com
+          JWT_AUDIENCE=v79-commerce
+          HUB_JWKS_URL=https://hub.v79sl.com/.well-known/jwks.json
+          CORS_ORIGINS=https://commerce.v79sl.com
+          REPLENISHMENT_INTERVAL_MINUTES=60
+          LOG_LEVEL=info
+          TRUST_PROXY=true
+          GIFT_CARD_PEPPER=ci_gift_card_pepper_0123456789abcdef
+          ENCRYPTION_KEY=ci_encryption_key_0123456789abcdef012345
+          PROXY_NETWORK=proxy_network
+          EOF
+          docker network inspect proxy_network >/dev/null 2>&1 || docker network create proxy_network
+          docker compose -f docker-compose.prod.yml config >/dev/null
+          docker compose -f docker-compose.prod.yml up -d --build
+          for i in $(seq 1 45); do
+            if docker compose -f docker-compose.prod.yml exec -T api wget -qO- http://127.0.0.1:8080/ready >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.prod.yml ps
+          docker compose -f docker-compose.prod.yml logs --no-color api migrate
+          exit 1
+      - name: Tear down production Compose stack
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v --remove-orphans || true

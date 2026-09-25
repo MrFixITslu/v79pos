@@ -51,8 +51,11 @@ services:
       redis:
         condition: service_healthy
     command: ["node", "apps/api/dist/server.js"]
-    ports:
-      - "8080:8080"
+    networks:
+      default:
+      proxy_network:
+        aliases:
+          - v79-commerce-api
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/ready"]
       interval: 15s
@@ -72,6 +75,11 @@ services:
         condition: service_healthy
     command: ["node", "apps/api/dist/worker.js"]
     restart: unless-stopped
+
+networks:
+  proxy_network:
+    external: true
+    name: ${PROXY_NETWORK:-proxy_network}
 
 volumes:
   postgres_data:

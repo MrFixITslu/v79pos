@@ -18,10 +18,11 @@ const schema = z.object({
 });
 
 const parsed = schema.parse(process.env);
+const looksLikePlaceholder = (value: string) => /change[-_ ]?me|replace[-_ ]?(with)?/i.test(value);
 if (parsed.NODE_ENV === 'production') {
   if (parsed.AUTH_MODE === 'dev') throw new Error('AUTH_MODE=dev is forbidden in production');
-  if (parsed.GIFT_CARD_PEPPER.includes('change-me')) throw new Error('GIFT_CARD_PEPPER must be changed in production');
-  if (parsed.ENCRYPTION_KEY.includes('change-me')) throw new Error('ENCRYPTION_KEY must be changed in production');
+  if (looksLikePlaceholder(parsed.GIFT_CARD_PEPPER)) throw new Error('GIFT_CARD_PEPPER must be changed in production');
+  if (looksLikePlaceholder(parsed.ENCRYPTION_KEY)) throw new Error('ENCRYPTION_KEY must be changed in production');
   if (!parsed.CORS_ORIGINS.trim()) throw new Error('CORS_ORIGINS must be explicitly configured in production');
 }
 export const config = parsed;
