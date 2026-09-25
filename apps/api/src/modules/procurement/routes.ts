@@ -130,7 +130,8 @@ export async function procurementRoutes(app: FastifyInstance) {
       const po = await tx.purchaseOrder.findFirst({ where: { id, tenantId: request.auth.tenantId } });
       if (!po) throw notFound('Purchase order not found');
       assertLocationAccess(request, po.shipToLocationId);
-      if (![PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.PENDING_APPROVAL].includes(po.status)) throw conflict('Purchase order is not awaiting approval');
+      const approvableStatuses: PurchaseOrderStatus[] = [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.PENDING_APPROVAL];
+      if (!approvableStatuses.includes(po.status)) throw conflict('Purchase order is not awaiting approval');
       const updated = await tx.purchaseOrder.update({ where: { id }, data: { status: PurchaseOrderStatus.APPROVED, approvedBy: request.auth.userId, approvedAt: new Date() } });
       await emitEvent(tx, { tenantId: request.auth.tenantId, eventType: 'purchase_order.approved', aggregateType: 'PurchaseOrder', aggregateId: po.id, payload: { number: po.number, approvedBy: request.auth.userId } });
       await writeAudit(tx, { tenantId: request.auth.tenantId, actorUserId: request.auth.userId, action: 'purchase_order.approved', resourceType: 'PurchaseOrder', resourceId: po.id });
@@ -145,7 +146,8 @@ export async function procurementRoutes(app: FastifyInstance) {
       const po = await tx.purchaseOrder.findFirst({ where: { id, tenantId: request.auth.tenantId }, include: { lines: { include: { productVariant: { include: { product: true } } } } } });
       if (!po) throw notFound('Purchase order not found');
       assertLocationAccess(request, po.shipToLocationId);
-      if ([PurchaseOrderStatus.CANCELLED, PurchaseOrderStatus.CLOSED, PurchaseOrderStatus.RECEIVED].includes(po.status)) throw conflict('Purchase order cannot receive stock in its current status');
+      const nonReceivableStatuses: PurchaseOrderStatus[] = [PurchaseOrderStatus.CANCELLED, PurchaseOrderStatus.CLOSED, PurchaseOrderStatus.RECEIVED];
+      if (nonReceivableStatuses.includes(po.status)) throw conflict('Purchase order cannot receive stock in its current status');
       const lineMap = new Map(po.lines.map(line => [line.id, line]));
       const receiving = body.lines.map(input => {
         const line = lineMap.get(input.purchaseOrderLineId);
