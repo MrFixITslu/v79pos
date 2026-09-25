@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
 import { requirePermission } from '../auth/context.js';
@@ -52,7 +53,7 @@ export async function catalogueRoutes(app: FastifyInstance) {
             sellPrice: v.sellPrice,
             taxRate: v.taxRate,
             trackStock: v.trackStock,
-            attributes: v.attributes
+            attributes: v.attributes as Prisma.InputJsonValue | undefined
           }))
         }
       },
