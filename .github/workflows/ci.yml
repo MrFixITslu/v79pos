@@ -6,6 +6,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://v79commerce:test@localhost:5432/v79commerce?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
