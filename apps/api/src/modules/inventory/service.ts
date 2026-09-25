@@ -86,7 +86,7 @@ function balanceChange(type: InventoryMovementType, qty: Prisma.Decimal) {
 }
 
 function requiresSellable(type: InventoryMovementType) {
-  return [
+  const sellableMovements: InventoryMovementType[] = [
     InventoryMovementType.SALE,
     InventoryMovementType.TRANSFER_OUT,
     InventoryMovementType.ADJUSTMENT_LOSS,
@@ -94,7 +94,8 @@ function requiresSellable(type: InventoryMovementType) {
     InventoryMovementType.EXPIRY,
     InventoryMovementType.QUARANTINE_IN,
     InventoryMovementType.RESERVATION
-  ].includes(type);
+  ];
+  return sellableMovements.includes(type);
 }
 
 export async function postInventoryMovement(tx: Prisma.TransactionClient, input: MovementInput) {
