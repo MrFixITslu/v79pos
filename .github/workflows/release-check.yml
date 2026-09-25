@@ -2,6 +2,7 @@ name: Release Check
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ['v*']
 jobs:
   release-check:
