@@ -6,24 +6,29 @@ Status: **Backend release candidate 1.0.0-rc.1**
 
 The release candidate contains the commerce domain required for a modern multi-location POS: sales/refunds, register sessions, inventory ledger and costing, stock counts, price lists/promotions, internal value, commercial orders/deposits, suppliers/POs/receiving, logistics, replenishment, fulfilment, workforce, offline sync foundations, reports, audit and ecosystem delivery.
 
-## Release gates that must pass before production
+## Release gates
 
-1. Install the locked project dependencies in CI/development.
-2. Run `pnpm db:generate` and `pnpm db:validate`.
-3. Generate the Prisma baseline migration with `./scripts/prepare-baseline-migration.sh`.
-4. Review generated migration SQL and deploy it to a fresh PostgreSQL database with `prisma migrate deploy`.
-5. Run `pnpm build`, `pnpm test` and `pnpm lint`.
-6. Run integration tests against PostgreSQL/Redis, including concurrent inventory sale/transfer scenarios.
+Completed in GitHub CI / verified baseline workflow:
+
+1. ✅ Locked project dependencies install successfully and `pnpm-lock.yaml` is committed.
+2. ✅ `pnpm db:generate` and `pnpm db:validate` pass.
+3. ✅ A Prisma baseline migration is committed.
+4. ✅ The baseline migration deploys successfully to a fresh PostgreSQL 17 database.
+5. ✅ `pnpm build`, `pnpm test` and `pnpm lint` pass.
+
+Remaining before merchant production launch:
+
+6. Run broader integration/concurrency tests against PostgreSQL, including simultaneous inventory sale/transfer scenarios.
 7. Configure Hub production authentication and verify tenant isolation with cross-tenant negative tests.
 8. Configure and test actual payment adapters/terminal webhooks with provider sandboxes. V79 Commerce must never receive/store raw PAN/CVV.
 9. Configure and test FFPRO2, V79Marketing and Hub webhook consumers with idempotency/retry tests.
 10. Complete UI/offline-device beta testing, accessibility, load/performance and restore drills before merchant launch.
 
-## Known external blockers in this build environment
+## Current external blockers
 
-The current execution environment has neither installed npm dependencies nor package-registry access. Therefore Prisma Client generation, Prisma schema validation, the baseline migration, the TypeScript dependency-aware build and Vitest suite cannot be executed here. CI is configured as the authoritative gate for those checks.
+The backend dependency, Prisma validation and baseline-migration blockers have been removed using GitHub-hosted validation. The generated baseline was deployed successfully against a fresh PostgreSQL 17 service before it was committed.
 
-The connected Figma Starter account also reached its MCP tool-call allowance; engineering continued while UI design was intentionally deferred until access resets.
+The connected Figma Starter account reached its MCP tool-call allowance; UI design remains intentionally deferred until access resets. Live payment and ecosystem-provider validation also require their sandbox/production credentials and endpoints.
 
 ## Safety/financial invariants implemented
 
