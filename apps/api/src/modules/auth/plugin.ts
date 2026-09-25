@@ -31,7 +31,7 @@ async function userFromRequest(request: FastifyRequest): Promise<{ userId: strin
 }
 
 export async function registerAuth(app: FastifyInstance) {
-  app.decorateRequest('auth', null);
+  app.decorateRequest('auth', undefined as unknown as AuthContext);
 
   app.addHook('onRequest', async request => {
     if (request.url === '/health' || request.url === '/ready' || request.url.startsWith('/v1/payments/webhooks/')) return;
