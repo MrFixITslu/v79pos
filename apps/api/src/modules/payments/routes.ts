@@ -38,7 +38,8 @@ export async function paymentRoutes(app: FastifyInstance) {
     const intent = await prisma.paymentIntent.findFirst({ where: { id, tenantId: request.auth.tenantId }, include: { connection: true } });
     if (!intent) throw notFound('Payment intent not found');
     if (intent.connection.providerType !== 'MANUAL_TERMINAL') throw conflict('Intent is not a manual terminal payment');
-    if (![PaymentIntentStatus.CREATED, PaymentIntentStatus.REQUIRES_ACTION, PaymentIntentStatus.PROCESSING].includes(intent.status)) throw conflict('Payment intent cannot be confirmed from its current state');
+    const confirmableStatuses: PaymentIntentStatus[] = [PaymentIntentStatus.CREATED, PaymentIntentStatus.REQUIRES_ACTION, PaymentIntentStatus.PROCESSING];
+    if (!confirmableStatuses.includes(intent.status)) throw conflict('Payment intent cannot be confirmed from its current state');
     return prisma.paymentIntent.update({ where: { id }, data: { status: body.approved ? PaymentIntentStatus.SUCCEEDED : PaymentIntentStatus.FAILED, providerRef: body.providerRef, failureMessage: body.approved ? null : body.failureMessage ?? 'Declined at terminal' } });
   });
 
