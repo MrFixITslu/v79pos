@@ -68,7 +68,8 @@ async function inboundReceipts(tenantId: string, locationId: string, productVari
     let outstanding = line.orderedQty.minus(line.receivedQty).toNumber();
     if (outstanding <= 0) continue;
     for (const sl of line.shipmentLines) {
-      if ([ShipmentStatus.RECEIVED, ShipmentStatus.CANCELLED].includes(sl.shipment.status)) continue;
+      const terminalShipmentStatuses: ShipmentStatus[] = [ShipmentStatus.RECEIVED, ShipmentStatus.CANCELLED];
+      if (terminalShipmentStatuses.includes(sl.shipment.status)) continue;
       const qty = Math.min(outstanding, sl.quantity.toNumber());
       if (qty <= 0) continue;
       receipts.push({ quantity: qty, arrivesInDays: sl.shipment.eta ? toDays(sl.shipment.eta, now) : 0 });
