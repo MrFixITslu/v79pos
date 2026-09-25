@@ -9,6 +9,7 @@ const schema = z.object({
   JWT_ISSUER: z.string().url().default('https://hub.v79sl.com'),
   JWT_AUDIENCE: z.string().default('v79-commerce'),
   HUB_JWKS_URL: z.string().url().default('https://hub.v79sl.com/.well-known/jwks.json'),
+  V79_PLATFORM_SHARED_SECRET: z.string().default(''),
   CORS_ORIGINS: z.string().default(''),
   REPLENISHMENT_INTERVAL_MINUTES: z.coerce.number().int().min(5).default(60),
   LOG_LEVEL: z.string().default('info'),

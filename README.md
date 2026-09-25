@@ -93,7 +93,7 @@ CI runs these commands on pushes/PRs. A release should not be deployed if any ga
 
 These are deployment/integration inputs, not missing domain architecture:
 
-- Vision79 Hub production JWKS/issuer/audience values
+- Vision79 Hub production JWKS/issuer/audience values and the same `V79_PLATFORM_SHARED_SECRET` used by Hub. The secret authenticates signed provisioning and summary calls; user API requests require short-lived Hub Ed25519 JWTs and an active POS membership. In Hub set `POS_BASE_URL=http://v79-commerce-api:8080` on `proxy_network`. The owner can use the Hub **Connect POS workspace** control to provision their first location/register; the Hub POS card has no Open link until a browser register exists.
 - Actual WiPay/Stripe/card-terminal provider credentials and provider-specific adapter implementation/testing
 - FFPRO2/V79Marketing/Hub endpoint URLs and shared webhook secrets
 - SMTP/SMS/push provider configuration if those delivery channels are enabled
