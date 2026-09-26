@@ -17,5 +17,8 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY scripts/docker-entrypoint.sh /app/scripts/docker-entrypoint.sh
+RUN chmod 755 /app/scripts/docker-entrypoint.sh
+ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
 USER node
 CMD ["node", "apps/api/dist/server.js"]
