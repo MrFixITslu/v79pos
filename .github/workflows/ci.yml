@@ -36,6 +36,7 @@ jobs:
           JWT_ISSUER=https://hub.v79sl.com
           JWT_AUDIENCE=v79-commerce
           HUB_JWKS_URL=https://hub.v79sl.com/.well-known/jwks.json
+          V79_PLATFORM_SHARED_SECRET=ci_platform_shared_secret_0123456789abcdef
           CORS_ORIGINS=https://pos.v79sl.com
           REPLENISHMENT_INTERVAL_MINUTES=60
           LOG_LEVEL=info
