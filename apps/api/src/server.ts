@@ -29,6 +29,7 @@ import { reportRoutes } from './modules/reports/routes.js';
 import { auditRoutes } from './modules/audit/routes.js';
 import { orderRoutes } from './modules/orders/routes.js';
 import { fulfillmentRoutes } from './modules/fulfillment/routes.js';
+import { platformRoutes } from './modules/platform/routes.js';
 
 const trustProxy = config.TRUST_PROXY === 'true' ? true : config.TRUST_PROXY === 'false' ? false : config.TRUST_PROXY;
 const app = Fastify({ logger: { level: config.LOG_LEVEL, redact: ['req.headers.authorization','req.headers.cookie','body.cardNumber','body.cvv','body.accountCode'] }, trustProxy, bodyLimit: 1024 * 1024 });
@@ -53,6 +54,7 @@ app.get('/ready', async (_request, reply) => {
 });
 
 await registerAuth(app);
+await platformRoutes(app);
 await catalogueRoutes(app);
 await customerRoutes(app);
 await pricingRoutes(app);

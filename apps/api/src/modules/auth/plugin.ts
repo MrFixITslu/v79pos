@@ -34,7 +34,7 @@ export async function registerAuth(app: FastifyInstance) {
   app.decorateRequest('auth', undefined as unknown as AuthContext);
 
   app.addHook('onRequest', async request => {
-    if (request.url === '/health' || request.url === '/ready' || request.url.startsWith('/v1/payments/webhooks/')) return;
+    if (request.url === '/health' || request.url === '/ready' || request.url.startsWith('/v1/payments/webhooks/') || request.url.startsWith('/api/platform/')) return;
 
     const identity = await userFromRequest(request);
     const requestedTenant = String(request.headers['x-v79-tenant-id'] ?? '').trim();
