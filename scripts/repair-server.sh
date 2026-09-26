@@ -50,6 +50,12 @@ def write_env(path, updates):
 env = read_env(env_path)
 hub = read_env(hub_path)
 
+def placeholder(value):
+    if not value:
+        return True
+    lower = value.lower()
+    return "replace_" in lower or "replace-with" in lower or "change_me" in lower or "change-me" in lower
+
 updates = {
     "NODE_ENV": "production",
     "AUTH_MODE": "hub",
@@ -62,6 +68,12 @@ if not env.get("V79_PLATFORM_SHARED_SECRET"):
     secret = hub.get("V79_PLATFORM_SHARED_SECRET")
     if secret:
         updates["V79_PLATFORM_SHARED_SECRET"] = secret
+
+import secrets
+if placeholder(env.get("GIFT_CARD_PEPPER")):
+    updates["GIFT_CARD_PEPPER"] = secrets.token_urlsafe(48)
+if placeholder(env.get("ENCRYPTION_KEY")):
+    updates["ENCRYPTION_KEY"] = secrets.token_urlsafe(48)
 
 write_env(env_path, updates)
 print("POS environment repaired.")
