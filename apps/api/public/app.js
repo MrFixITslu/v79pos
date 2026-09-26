@@ -202,12 +202,11 @@ async function api(path, options = {}) {
     throw Error(
       "Demo mode is read-only. Connect a Hub account to save changes.",
     );
-  if (!state.token) throw Error("Connect your Hub account first.");
   const response = await fetch(path, {
     ...options,
     headers: {
-      Authorization: `Bearer ${state.token}`,
-      "x-v79-tenant-id": state.tenant,
+      ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      ...(state.tenant ? { "x-v79-tenant-id": state.tenant } : {}),
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {}),
     },
@@ -258,7 +257,7 @@ async function load() {
     if (result.status === "fulfilled") {
       const [k, value] = result.value;
       state.data[k] = value[k] ?? value;
-    } else if (state.token) toast(result.reason.message, true);
+    } else if (state.me) toast(result.reason.message, true);
   }
   if (
     !state.selectedRegister ||
@@ -887,12 +886,25 @@ window.addEventListener("message", (event) => {
 if (window.opener)
   window.opener.postMessage({ type: "v79-pos-ready" }, hubOrigin);
 const params = new URLSearchParams(location.hash.replace(/^#/, ""));
-if (params.has("access_token")) {
-  const token = params.get("access_token"),
-    tenant = params.get("tenant_id") || "";
+async function connectCookie() {
+  state.token = '';
+  state.demo = false;
+  state.me = await api('/v1/me');
+  state.tenant = state.me.tenantId;
+  await load();
+  render();
+}
+if (params.has('ticket')) {
+  const ticket = params.get('ticket');
   history.replaceState(null, "", location.pathname + location.search);
-  connect(token, tenant);
-} else renderLogin();
+  renderLogin();
+  fetch('/auth/launch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }), cache: 'no-store' })
+    .then(async response => { if (!response.ok) throw Error((await response.json().catch(() => ({}))).error || 'Hub launch failed'); return connectCookie(); })
+    .catch(error => { renderLogin(); toast(`${error.message} Open POS from Hub again.`, true); });
+} else {
+  renderLogin();
+  connectCookie().catch(() => renderLogin());
+}
 document.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
@@ -1238,6 +1250,7 @@ root.addEventListener("click", async (event) => {
       render();
       break;
     case "signout":
+      if (!state.demo) await fetch('/auth/logout', { method: 'POST', cache: 'no-store' }).catch(() => {});
       state.token = "";
       state.me = null;
       state.demo = false;

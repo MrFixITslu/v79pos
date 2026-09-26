@@ -13,9 +13,9 @@ V79 POS follows the same Docker/Nginx Proxy Manager pattern as the other V79 app
 - Only Docker network: `proxy_network`
 - Public URL: `https://pos.v79sl.com`
 
-The URL now serves a browser workspace. Its **Explore demo** option is read-only sample data. Live data requires a Hub-issued short-lived JWT for audience `v79-commerce`, a tenant membership provisioned by the Hub, and a register. The beta integration form accepts an issued POS access token and Hub organisation ID for testing; the token is held only in memory and is cleared on refresh. For production launch, Hub must provide the authenticated token handoff when opening POS. A link to the Hub sign-in page alone cannot supply a POS token across browser origins.
+The URL serves a browser workspace. Its **Explore demo** option is read-only sample data. For live data, sign into Hub and select **Open POS**. Hub provisions the owner and register, then redirects with a two-minute single-use ticket. POS consumes it over a signed server-to-server request and stores the five-minute JWT in an HttpOnly cookie. Relaunch from Hub when it expires.
 
-The POS page accepts a Hub popup handoff: Hub opens `https://pos.v79sl.com/` and listens for `{ type: 'v79-pos-ready' }` from that window. Hub then sends `{ type: 'v79-pos-auth', accessToken: '<short-lived POS JWT>', tenantId: '<Hub organisation ID>' }` with target origin `https://pos.v79sl.com`. POS accepts the message only from its opener at `https://hub.v79sl.com` and calls `/v1/me` to verify the JWT and membership. This requires a matching implementation in the Hub repository; do not put long-lived credentials or `V79_PLATFORM_SHARED_SECRET` in browser code.
+On the shared `proxy_network`, set POS `HUB_INTERNAL_URL=http://v79-hub:3040`, `HUB_JWKS_URL=http://v79-hub:3040/.well-known/jwks.json`, and `POS_PUBLIC_URL=https://pos.v79sl.com`. Keep `JWT_ISSUER=https://hub.v79sl.com`. Set Hub `POS_BASE_URL=http://v79-commerce-api:8080` and `POS_PUBLIC_URL=https://pos.v79sl.com`. Both services must use the same `V79_PLATFORM_SHARED_SECRET` of at least 32 characters. Redeploy Hub and POS after updating their `.env` files.
 
 The API is **not** published directly to a host port. Nginx Proxy Manager reaches it over `proxy_network`.
 

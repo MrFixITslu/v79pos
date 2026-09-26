@@ -6,10 +6,11 @@ import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createHash, createHmac } from 'node:crypto';
 import { config, corsOrigins } from './lib/config.js';
 import { prisma } from './lib/prisma.js';
 import { AppError } from './lib/errors.js';
-import { registerAuth } from './modules/auth/plugin.js';
+import { registerAuth, verifyHubAccessToken } from './modules/auth/plugin.js';
 import { catalogueRoutes } from './modules/catalogue/routes.js';
 import { inventoryRoutes } from './modules/inventory/routes.js';
 import { transferRoutes } from './modules/inventory/transfers.js';
@@ -69,6 +70,47 @@ app.get('/ready', async (_request, reply) => {
   } catch {
     return reply.code(503).send({ status: 'not-ready', database: 'unavailable' });
   }
+});
+
+// Exchange a single-use Hub launch ticket on the server. The JWT never goes
+// into a browser URL or JavaScript state; the browser receives an HttpOnly cookie.
+const sessionCookie = (value: string, maxAge: number) => `v79_pos_session=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${config.NODE_ENV === 'production' ? '; Secure' : ''}`;
+app.post('/auth/launch', async (request, reply) => {
+  if (request.headers.origin !== new URL(config.POS_PUBLIC_URL).origin) return reply.code(403).send({ error: 'Invalid request origin' });
+  const body = (request.body ?? {}) as { ticket?: unknown };
+  if (typeof body.ticket !== 'string' || !/^[A-Za-z0-9_-]{32,180}$/.test(body.ticket)) return reply.code(400).send({ error: 'Invalid launch ticket' });
+  const pathname = '/api/platform/session/consume';
+  const payload = JSON.stringify({ product: 'pos', ticket: body.ticket });
+  const timestamp = String(Date.now());
+  const digest = createHash('sha256').update(payload).digest('hex');
+  const signature = createHmac('sha256', config.V79_PLATFORM_SHARED_SECRET).update(`POST\n${pathname}\n${timestamp}\n${digest}`).digest('hex');
+  try {
+    const response = await fetch(new URL(pathname, config.HUB_INTERNAL_URL), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-v79-service-id': 'v79-pos', 'x-v79-timestamp': timestamp, 'x-v79-signature': signature },
+      body: payload,
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!response.ok) return reply.code(response.status === 401 || response.status === 403 ? response.status : 502).send({ error: 'Hub launch was denied or expired. Open POS from Hub again.' });
+    const launch = await response.json() as { token?: string; tenantId?: string };
+    if (!launch.token || !launch.tenantId) return reply.code(502).send({ error: 'Hub returned an invalid POS launch' });
+    const verified = await verifyHubAccessToken(launch.token);
+    if (verified.payload.tenant_id !== launch.tenantId || !verified.payload.sub) return reply.code(502).send({ error: 'Hub POS identity mismatch' });
+    const remaining = Math.max(0, Math.min(300, Number(verified.payload.exp ?? 0) - Math.floor(Date.now()/1000)));
+    if (!remaining) return reply.code(401).send({ error: 'Hub POS token expired' });
+    reply.header('set-cookie', sessionCookie(launch.token, remaining));
+    reply.header('cache-control', 'no-store');
+    return { connected: true };
+  } catch (error) {
+    request.log.warn({ err: error }, 'POS launch exchange failed');
+    return reply.code(503).send({ error: 'Hub launch is unavailable. Try again from Hub.' });
+  }
+});
+app.post('/auth/logout', async (request, reply) => {
+  if (request.headers.origin !== new URL(config.POS_PUBLIC_URL).origin) return reply.code(403).send({ error: 'Invalid request origin' });
+  reply.header('set-cookie', sessionCookie('', 0));
+  reply.header('cache-control', 'no-store');
+  return { signedOut: true };
 });
 
 await registerAuth(app);

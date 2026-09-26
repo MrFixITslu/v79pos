@@ -87,10 +87,10 @@ CI runs these commands on pushes/PRs. A release should not be deployed if any ga
 
 These are deployment/integration inputs, not missing domain architecture:
 
-- Vision79 Hub production JWKS/issuer/audience values and the same `V79_PLATFORM_SHARED_SECRET` used by Hub. The secret authenticates signed provisioning and summary calls; user API requests require short-lived Hub Ed25519 JWTs and an active POS membership. In Hub set `POS_BASE_URL=http://v79-commerce-api:8080` on `proxy_network`. The owner can use the Hub **Connect POS workspace** control to provision their first location/register; the Hub POS card has no Open link until a browser register exists.
+- Vision79 Hub production issuer/audience and the same `V79_PLATFORM_SHARED_SECRET` used by Hub. Configure POS `HUB_INTERNAL_URL=http://v79-hub:3040`, `HUB_JWKS_URL=http://v79-hub:3040/.well-known/jwks.json`, and `POS_PUBLIC_URL=https://pos.v79sl.com` on `proxy_network`. In Hub set `POS_BASE_URL=http://v79-commerce-api:8080` and `POS_PUBLIC_URL=https://pos.v79sl.com`. The owner opens POS from Hub; POS exchanges the one-time ticket server to server and sets a five-minute HttpOnly session cookie. Relaunch from Hub when it expires.
 - Actual WiPay/Stripe/card-terminal provider credentials and provider-specific adapter implementation/testing
 - FFPRO2/V79Marketing/Hub endpoint URLs and shared webhook secrets
 - SMTP/SMS/push provider configuration if those delivery channels are enabled
-- Hub launch handoff integration and end-to-end device/payment beta testing
+- End-to-end device/payment beta testing
 
 See `docs/IMPLEMENTATION_STATUS.md`, `docs/API.md`, `docs/SECURITY.md` and `docs/RELEASE_READINESS.md`.

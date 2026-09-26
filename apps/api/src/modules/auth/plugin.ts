@@ -9,8 +9,18 @@ const jwks = createRemoteJWKSet(new URL(config.HUB_JWKS_URL));
 
 function bearer(request: FastifyRequest) {
   const header = request.headers.authorization;
-  if (!header?.startsWith('Bearer ')) throw unauthorized('Bearer token required');
-  return header.slice(7);
+  if (header) {
+    if (!header.startsWith('Bearer ')) throw unauthorized('Bearer token required');
+    return header.slice(7);
+  }
+  const cookie = request.headers.cookie?.split(';').map(part => part.trim()).find(part => part.startsWith('v79_pos_session='));
+  if (!cookie) throw unauthorized('Sign in through Vision79 Hub');
+  try { return decodeURIComponent(cookie.slice('v79_pos_session='.length)); }
+  catch { throw unauthorized('Invalid POS session'); }
+}
+
+export async function verifyHubAccessToken(token: string) {
+  return jwtVerify(token, jwks, { issuer: config.JWT_ISSUER, audience: config.JWT_AUDIENCE });
 }
 
 async function userFromRequest(request: FastifyRequest): Promise<{ userId: string; tokenTenantId?: string }> {
@@ -21,10 +31,7 @@ async function userFromRequest(request: FastifyRequest): Promise<{ userId: strin
     return { userId };
   }
 
-  const verified = await jwtVerify(bearer(request), jwks, {
-    issuer: config.JWT_ISSUER,
-    audience: config.JWT_AUDIENCE
-  });
+  const verified = await verifyHubAccessToken(bearer(request));
   if (!verified.payload.sub) throw unauthorized('Token subject is missing');
   const tenantClaim = typeof verified.payload.tenant_id === 'string' ? verified.payload.tenant_id : undefined;
   return { userId: verified.payload.sub, tokenTenantId: tenantClaim };
@@ -34,7 +41,11 @@ export async function registerAuth(app: FastifyInstance) {
   app.decorateRequest('auth', undefined as unknown as AuthContext);
 
   app.addHook('onRequest', async request => {
-    if (request.url === '/' || request.url === '/favicon.svg' || request.url === '/app.js' || request.url === '/app.css' || request.url === '/health' || request.url === '/ready' || request.url.startsWith('/v1/payments/webhooks/') || request.url.startsWith('/api/platform/')) return;
+    if (request.url === '/' || request.url === '/favicon.svg' || request.url === '/app.js' || request.url === '/app.css' || request.url === '/health' || request.url === '/ready' || request.url === '/auth/launch' || request.url === '/auth/logout' || request.url.startsWith('/v1/payments/webhooks/') || request.url.startsWith('/api/platform/')) return;
+
+    if (!request.headers.authorization && !['GET','HEAD','OPTIONS'].includes(request.method) && request.headers.origin !== new URL(config.POS_PUBLIC_URL).origin) {
+      throw unauthorized('Invalid request origin');
+    }
 
     const identity = await userFromRequest(request);
     const requestedTenant = String(request.headers['x-v79-tenant-id'] ?? '').trim();
