@@ -3,6 +3,7 @@ set -eu
 
 ENV_FILE="${ENV_FILE:-.env}"
 HUB_ENV="${HUB_ENV:-$HOME/v79hub/.env}"
+umask 077
 
 if [ ! -f "$ENV_FILE" ]; then
   cp .env.production.example "$ENV_FILE"
@@ -64,9 +65,9 @@ updates = {
     "PROXY_NETWORK": "proxy_network",
 }
 
-if not env.get("V79_PLATFORM_SHARED_SECRET"):
+if placeholder(env.get("V79_PLATFORM_SHARED_SECRET")):
     secret = hub.get("V79_PLATFORM_SHARED_SECRET")
-    if secret:
+    if not placeholder(secret):
         updates["V79_PLATFORM_SHARED_SECRET"] = secret
 
 import secrets
@@ -76,32 +77,22 @@ if placeholder(env.get("ENCRYPTION_KEY")):
     updates["ENCRYPTION_KEY"] = secrets.token_urlsafe(48)
 
 write_env(env_path, updates)
+env_path.chmod(0o600)
 print("POS environment repaired.")
 PY
 
-POSTGRES_PASSWORD="$(python3 - "$ENV_FILE" <<'PY'
+python3 - "$ENV_FILE" <<'PY'
 from pathlib import Path
 import sys
 
+password = None
 for raw in Path(sys.argv[1]).read_text().splitlines():
     if raw.startswith("POSTGRES_PASSWORD="):
-        value = raw.split("=", 1)[1].strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-            value = value[1:-1]
-        print(value, end="")
+        password = raw.split("=", 1)[1].strip().strip('"\'')
         break
+if not password or any(mark in password.lower() for mark in ('replace_', 'change_me', 'change-me', 'replace-with')):
+    sys.exit(f"Set a real POSTGRES_PASSWORD in {sys.argv[1]} before running the repair.")
 PY
-)"
-
-if [ -z "$POSTGRES_PASSWORD" ]; then
-  echo "POSTGRES_PASSWORD is missing from $ENV_FILE" >&2
-  exit 1
-fi
-
-if printf '%s' "$POSTGRES_PASSWORD" | grep -Eiq 'REPLACE_|change[_-]?me|replace-with'; then
-  echo "POSTGRES_PASSWORD is still a placeholder in $ENV_FILE" >&2
-  exit 1
-fi
 
 if ! docker network inspect proxy_network >/dev/null 2>&1; then
   docker network create proxy_network >/dev/null
@@ -109,18 +100,22 @@ fi
 
 docker compose --env-file "$ENV_FILE" up -d postgres redis
 
-echo "Synchronizing PostgreSQL role password..."
-python3 - "$POSTGRES_PASSWORD" <<'PY' | docker exec -i -u postgres v79-pos-db psql -U v79commerce -d v79commerce -v ON_ERROR_STOP=1
+echo "Synchronizing the existing PostgreSQL role password..."
+python3 - "$ENV_FILE" <<'PY' | docker exec -i -u postgres v79-pos-db psql -U v79commerce -d v79commerce -v ON_ERROR_STOP=1 >/dev/null
+from pathlib import Path
 import sys
-password = sys.argv[1].replace("'", "''")
-print(f"ALTER ROLE v79commerce WITH PASSWORD '{password}';")
+for raw in Path(sys.argv[1]).read_text().splitlines():
+    if raw.startswith('POSTGRES_PASSWORD='):
+        password = raw.split('=', 1)[1].strip().strip('"\'').replace("'", "''")
+        print(f"ALTER ROLE v79commerce WITH PASSWORD '{password}';")
+        break
 PY
 
 echo "Running Prisma migrations..."
 docker compose --env-file "$ENV_FILE" run --rm migrate ./node_modules/.bin/prisma migrate deploy
 
 echo "Starting V79 POS..."
-docker compose --env-file "$ENV_FILE" up -d --build
+docker compose --env-file "$ENV_FILE" up -d --build --wait
 
 echo
 docker compose --env-file "$ENV_FILE" ps

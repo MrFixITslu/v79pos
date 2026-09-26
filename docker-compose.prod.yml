@@ -43,7 +43,6 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://v79commerce:${POSTGRES_PASSWORD}@postgres:5432/v79commerce?schema=public
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,7 +62,6 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
-      DATABASE_URL: postgresql://v79commerce:${POSTGRES_PASSWORD}@postgres:5432/v79commerce?schema=public
       REDIS_URL: redis://redis:6379
       TRUST_PROXY: ${TRUST_PROXY:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://pos.v79sl.com}
@@ -100,7 +98,6 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://v79commerce:${POSTGRES_PASSWORD}@postgres:5432/v79commerce?schema=public
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: ${CORS_ORIGINS:-https://pos.v79sl.com}
       V79_PLATFORM_SHARED_SECRET: ${V79_PLATFORM_SHARED_SECRET:?V79_PLATFORM_SHARED_SECRET is required}

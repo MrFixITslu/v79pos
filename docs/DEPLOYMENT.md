@@ -36,6 +36,22 @@ chmod +x scripts/deploy-prod.sh
 
 The stack starts PostgreSQL and Redis, applies committed Prisma migrations, starts the POS API, waits for its health check, then starts the worker.
 
+## Existing database: Prisma P1000 or API readiness 503
+
+PostgreSQL reads `POSTGRES_PASSWORD` only when it initializes an empty data volume. Editing `.env` later does not change the password inside the existing `v79pos_postgres_data` volume. A successful `pg_isready` check does not test that password. The migration and API then fail authentication and `/ready` returns 503.
+
+From the POS repository directory on the Docker host, set a strong `POSTGRES_PASSWORD` in `.env`, then run:
+
+```bash
+./scripts/repair-server.sh
+docker compose ps
+docker compose logs --tail=40 migrate api worker
+```
+
+The repair preserves the volume and updates the existing `v79commerce` role to the password in `.env` before applying migrations. It also sets missing application secrets; configure the Hub secret and JWT values for your Hub before user sign-in. Do not run `docker compose down -v`, which deletes POS database and Redis volumes. For a new volume, use `./scripts/deploy-prod.sh`.
+
+The API, worker and migration job construct their database URL at startup from `POSTGRES_PASSWORD`. This handles passwords containing reserved URL characters such as `@`, `:`, `/` and `#`. Keep `.env` private and use the same file for both `docker compose` and the repair script.
+
 ## Nginx Proxy Manager
 
 Create or update the proxy host:

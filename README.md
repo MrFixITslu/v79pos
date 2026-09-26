@@ -42,13 +42,13 @@ The backend scope is implemented as a modular TypeScript/Fastify service using P
 ```bash
 cp .env.example .env
 # Change local secrets and POSTGRES_PASSWORD.
-docker compose up --build -d
+docker compose -f docker-compose.dev.yml up --build -d
 ```
 
-The default `docker-compose.yml` is for development/testing and currently uses `prisma db push` on a fresh database. Bootstrap a development tenant/location/register:
+For local development use `docker-compose.dev.yml`. The default `docker-compose.yml` is the production stack and applies the checked-in migrations. Bootstrap a development tenant/location/register:
 
 ```bash
-docker compose exec api node apps/api/dist/scripts/bootstrap.js
+docker compose -f docker-compose.dev.yml exec api node apps/api/dist/scripts/bootstrap.js
 ```
 
 Health:
@@ -58,23 +58,17 @@ GET /health
 GET /ready
 ```
 
-## Production migration gate
+## Production deployment
 
-Production must use checked-in Prisma migrations, **not** `db push`. This environment cannot install project dependencies from the package registry, so a Prisma-generated baseline migration could not be truthfully generated or validated here.
-
-On a development/CI machine with dependencies installed:
+Production uses the checked-in Prisma baseline migration, validated against a fresh PostgreSQL 17 database in CI. It does not use `db push`.
 
 ```bash
-./scripts/prepare-baseline-migration.sh
+cp .env.production.example .env
+# Set the secrets and Hub configuration in .env.
+./scripts/deploy-prod.sh
 ```
 
-Review the generated SQL, commit it, and validate `prisma migrate deploy` against an empty PostgreSQL database. Only then use:
-
-```bash
-docker compose -f docker-compose.prod.yml up --build -d
-```
-
-See `prisma/migrations/README.md` and `docs/RELEASE_READINESS.md`.
+For an existing database volume returning Prisma P1000, follow `docs/DEPLOYMENT.md` and run `./scripts/repair-server.sh`. See `docs/RELEASE_READINESS.md` for validation evidence.
 
 ## Verification commands
 
@@ -97,7 +91,6 @@ These are deployment/integration inputs, not missing domain architecture:
 - Actual WiPay/Stripe/card-terminal provider credentials and provider-specific adapter implementation/testing
 - FFPRO2/V79Marketing/Hub endpoint URLs and shared webhook secrets
 - SMTP/SMS/push provider configuration if those delivery channels are enabled
-- Generated and validated Prisma baseline migration
 - Figma/UI implementation and end-to-end device/payment beta testing
 
 See `docs/IMPLEMENTATION_STATUS.md`, `docs/API.md`, `docs/SECURITY.md` and `docs/RELEASE_READINESS.md`.
