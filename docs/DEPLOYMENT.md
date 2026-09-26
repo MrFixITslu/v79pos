@@ -10,7 +10,7 @@ V79 POS follows the same Docker/Nginx Proxy Manager pattern as the other V79 app
 - PostgreSQL: `v79-pos-db`
 - Redis: `v79-pos-redis`
 - API port inside Docker: `8080`
-- Shared reverse-proxy network: `proxy_network`
+- Only Docker network: `proxy_network`
 - Public URL: `https://pos.v79sl.com`
 
 The API is **not** published directly to a host port. Nginx Proxy Manager reaches it over `proxy_network`.
@@ -50,7 +50,7 @@ Create or update the proxy host:
 - Force SSL: enabled
 - HTTP/2: enabled
 
-Nginx Proxy Manager must be connected to `proxy_network`.
+All V79 POS services—including API, worker, PostgreSQL, Redis and migration—use `proxy_network` only. Nginx Proxy Manager must also be connected to `proxy_network`. PostgreSQL and Redis do not publish host ports.
 
 ## Verify
 
