@@ -53,6 +53,7 @@ export async function catalogueRoutes(app: FastifyInstance) {
             sellPrice: v.sellPrice,
             taxRate: v.taxRate,
             trackStock: v.trackStock,
+            requiresExpiry: v.requiresExpiry,
             attributes: v.attributes as Prisma.InputJsonValue | undefined
           }))
         }

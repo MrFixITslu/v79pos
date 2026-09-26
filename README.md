@@ -6,7 +6,7 @@ V79 Commerce is a multi-tenant commerce operating system: V79 POS at the registe
 
 ## Beta workspace
 
-The TypeScript/Fastify service now serves a responsive browser interface from the same origin as the API. Its beta screens cover checkout, register sessions, catalogue, inventory, customers, sales history, suppliers, purchase orders and replenishment. The read-only demo uses labelled sample data. Live mutations still require a verified Hub POS JWT and an active tenant membership.
+The TypeScript/Fastify service now serves a responsive browser interface from the same origin as the API. Its beta screens cover checkout, register sessions, catalogue, inventory, customers, sales history, supplier product links, purchase orders, stock receiving and reorder policies. The read-only demo uses labelled sample data. Live mutations still require a verified Hub POS JWT and an active tenant membership. Advanced API features such as split tenders, refunds, lot/serial sales and offline sync still need dedicated UI and device beta testing.
 
 ### Implemented
 

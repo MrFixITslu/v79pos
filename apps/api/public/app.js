@@ -484,7 +484,7 @@ function purchasing() {
     );
   const orders = (state.data.purchaseOrders || []).map(
     (x) =>
-      `<tr><td><strong>${h(x.number)}</strong></td><td>${h(x.supplier?.name)}</td><td>${h(x.shipTo?.name)}</td><td>${badge(x.status)}</td><td>${h(date(x.expectedAt))}</td></tr>`,
+      `<tr><td><strong>${h(x.number)}</strong></td><td>${h(x.supplier?.name)}</td><td>${h(x.shipTo?.name)}</td><td>${badge(x.status)}</td><td>${h(date(x.expectedAt))}</td><td>${x.status === "DRAFT" && can("procurement.approve") ? `<button class="btn" data-approve="${h(x.id)}">Approve</button>` : ""}${!["RECEIVED", "CLOSED", "CANCELLED"].includes(x.status) && can("receiving.write") ? `<button class="btn" data-receive="${h(x.id)}">Receive</button>` : ""}</td></tr>`,
   );
   const suppliers = (state.data.suppliers || []).map(
     (x) =>
@@ -495,10 +495,10 @@ function purchasing() {
       "Purchasing",
       "Suppliers, lead times and incoming orders",
       can("procurement.write")
-        ? `<button class="btn primary" data-modal="supplier">+ Add supplier</button>`
+        ? `<div class="actions"><button class="btn" data-modal="supplier-link">Link supplier product</button><button class="btn" data-modal="supplier">+ Add supplier</button><button class="btn primary" data-modal="purchase-order">+ Purchase order</button></div>`
         : "",
     ) +
-    `<div class="split"><section class="card section"><h2>Purchase orders</h2>${orders.length ? table(["PO", "Supplier", "Destination", "Status", "Expected"], orders) : empty("No purchase orders yet. Replenishment can draft orders from recommendations.")}</section><section class="card section"><h2>Suppliers</h2>${suppliers.length ? table(["Name", "Lead time", "Email"], suppliers) : empty("No suppliers configured.")}</section></div>`
+    `<div class="split"><section class="card section"><h2>Purchase orders</h2>${orders.length ? table(["PO", "Supplier", "Destination", "Status", "Expected", "Actions"], orders) : empty("No purchase orders yet. Link a product to a supplier, then create an order.")}</section><section class="card section"><h2>Suppliers</h2>${suppliers.length ? table(["Name", "Lead time", "Email"], suppliers) : empty("No suppliers configured.")}</section></div>`
   );
 }
 function replenishment() {
@@ -515,7 +515,7 @@ function replenishment() {
     header(
       "Smart replenishment",
       "Order timing based on demand, lead time and safety stock",
-      `<div class="actions">${can("replenishment.run") ? '<button class="btn" data-action="recalculate">Recalculate</button>' : ""}${can("procurement.write") ? '<button class="btn primary" data-action="draft-pos">Create draft POs</button>' : ""}</div>`,
+      `<div class="actions">${can("replenishment.manage") ? '<button class="btn" data-modal="policy">Set reorder policy</button>' : ""}${can("replenishment.run") ? '<button class="btn" data-action="recalculate">Recalculate</button>' : ""}${can("procurement.write") ? '<button class="btn primary" data-action="draft-pos">Create draft POs</button>' : ""}</div>`,
     ) +
     `<section class="card section">${rows.length ? table(["Product", "Status", "Order qty", "Order by", "Supplier", "Select"], rows) : empty("No recommendations yet. Set a replenishment policy and run a calculation.")}</section>`
   );
@@ -606,6 +606,164 @@ function openModal(name) {
       "supplier-form",
       "Create supplier",
     );
+  if (name === "supplier-link")
+    modal(
+      "Link a product to a supplier",
+      select(
+        "supplierId",
+        "Supplier",
+        (state.data.suppliers || []).map((s) => [s.id, s.name]),
+      ) +
+        select(
+          "variantId",
+          "Product",
+          variants()
+            .filter((v) => v.trackStock)
+            .map((v) => [v.id, `${v.product.name} · ${v.sku}`]),
+        ) +
+        field(
+          "cost",
+          "Supplier unit cost (XCD)",
+          "number",
+          "",
+          'required min="0" step="0.01"',
+        ) +
+        field(
+          "moq",
+          "Minimum order quantity",
+          "number",
+          "0",
+          'required min="0" step="any"',
+        ) +
+        field(
+          "casePack",
+          "Case pack",
+          "number",
+          "1",
+          'required min="0.001" step="any"',
+        ) +
+        `<div class="field wide"><label><input type="checkbox" name="preferred"> Preferred supplier for this product</label></div>`,
+      "supplier-link-form",
+      "Link product",
+    );
+  if (name === "purchase-order")
+    modal(
+      "Create purchase order",
+      `<div class="field wide notice">Link the product to this supplier before creating an order.</div>` +
+        select(
+          "supplierId",
+          "Supplier",
+          (state.data.suppliers || []).map((s) => [s.id, s.name]),
+        ) +
+        select("locationId", "Delivery location", locations) +
+        select(
+          "variantId",
+          "Product",
+          variants()
+            .filter((v) => v.trackStock)
+            .map((v) => [v.id, `${v.product.name} · ${v.sku}`]),
+        ) +
+        field(
+          "quantity",
+          "Order quantity",
+          "number",
+          "",
+          'required min="0.001" step="any"',
+        ) +
+        field("expectedAt", "Expected delivery", "date") +
+        field("notes", "Notes"),
+      "purchase-order-form",
+      "Create draft order",
+    );
+  if (name === "policy")
+    modal(
+      "Set reorder policy",
+      select("locationId", "Location", locations) +
+        select(
+          "variantId",
+          "Product",
+          variants()
+            .filter((v) => v.trackStock)
+            .map((v) => [v.id, `${v.product.name} · ${v.sku}`]),
+        ) +
+        select(
+          "supplierId",
+          "Preferred supplier (linked products only)",
+          (state.data.suppliers || []).map((s) => [s.id, s.name]),
+          "No preferred supplier",
+        ) +
+        field(
+          "safety",
+          "Safety stock units",
+          "number",
+          "0",
+          'required min="0" step="any"',
+        ) +
+        field(
+          "review",
+          "Review period (days)",
+          "number",
+          "14",
+          'required min="1" max="365"',
+        ) +
+        field(
+          "lead",
+          "Planning lead time (days)",
+          "number",
+          "14",
+          'min="0" max="365"',
+        ) +
+        field(
+          "demand",
+          "Daily demand override (optional)",
+          "number",
+          "",
+          'min="0" step="any"',
+        ),
+      "policy-form",
+      "Save policy",
+    );
+  if (name === "receipt") {
+    const order = (state.data.purchaseOrders || []).find(
+      (po) => po.id === state.selectedOrder,
+    );
+    if (!order) return toast("Purchase order not found", true);
+    const lines = order.lines.filter(
+      (line) => Number(line.orderedQty) > Number(line.receivedQty),
+    );
+    if (!lines.length)
+      return toast("Nothing remains to receive on this order", true);
+    modal(
+      `Receive ${order.number}`,
+      select(
+        "lineId",
+        "Purchase order line",
+        lines.map((line) => [
+          line.id,
+          `${line.productVariant?.sku || "Product"} · ${round(Number(line.orderedQty) - Number(line.receivedQty))} outstanding`,
+        ]),
+      ) +
+        field(
+          "quantity",
+          "Quantity received",
+          "number",
+          "",
+          'required min="0.001" step="any"',
+        ) +
+        field("lot", "Lot number (for lot-tracked products)") +
+        field("expiry", "Expiry date (if required)", "date") +
+        `<div class="field wide"><label for="serials">Serial numbers (one per line, if serialized)</label><textarea id="serials" name="serials"></textarea></div>` +
+        field(
+          "additionalCosts",
+          "Additional landed costs (XCD)",
+          "number",
+          "0",
+          'min="0" step="0.01"',
+        ),
+      "receipt-form",
+      "Receive stock",
+    );
+  }
   if (name === "adjustment")
     modal(
       "Adjust stock",
@@ -777,6 +935,106 @@ document.addEventListener("submit", async (event) => {
           }),
         });
         break;
+      case "supplier-link-form":
+        result = await api(
+          `/v1/suppliers/${encodeURIComponent(v.get("supplierId"))}/products`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              productVariantId: v.get("variantId"),
+              unitCost: Number(v.get("cost")),
+              minimumOrderQty: Number(v.get("moq")),
+              casePack: Number(v.get("casePack")),
+              preferred: v.has("preferred"),
+            }),
+          },
+        );
+        break;
+      case "purchase-order-form":
+        result = await api("/v1/purchase-orders", {
+          method: "POST",
+          body: JSON.stringify({
+            supplierId: v.get("supplierId"),
+            shipToLocationId: v.get("locationId"),
+            expectedAt: v.get("expectedAt") || undefined,
+            notes: v.get("notes") || undefined,
+            lines: [
+              {
+                productVariantId: v.get("variantId"),
+                orderedQty: Number(v.get("quantity")),
+              },
+            ],
+          }),
+        });
+        break;
+      case "policy-form":
+        result = await api("/v1/replenishment/policies", {
+          method: "PUT",
+          body: JSON.stringify({
+            locationId: v.get("locationId"),
+            productVariantId: v.get("variantId"),
+            preferredSupplierId: v.get("supplierId") || undefined,
+            safetyStockQty: Number(v.get("safety")),
+            reviewPeriodDays: Number(v.get("review")),
+            manualLeadDays:
+              v.get("lead") === "" ? undefined : Number(v.get("lead")),
+            manualDailyDemand:
+              v.get("demand") === "" ? undefined : Number(v.get("demand")),
+            enabled: true,
+          }),
+        });
+        break;
+      case "receipt-form": {
+        const po = (state.data.purchaseOrders || []).find(
+          (x) => x.id === state.selectedOrder,
+        );
+        const line = po?.lines.find((x) => x.id === v.get("lineId"));
+        if (!line) throw Error("Select an outstanding purchase-order line.");
+        const qty = Number(v.get("quantity"));
+        if (qty > Number(line.orderedQty) - Number(line.receivedQty))
+          throw Error("Quantity exceeds the outstanding amount.");
+        const product = variants().find((x) => x.id === line.productVariantId);
+        const requiresLot =
+          product?.product.productType === "LOT_TRACKED" ||
+          product?.requiresExpiry;
+        const isSerialized = product?.product.productType === "SERIALIZED";
+        const serialNumbers = String(v.get("serials") || "")
+          .split(/[\n,]+/)
+          .map((x) => x.trim())
+          .filter(Boolean);
+        if (requiresLot && !String(v.get("lot") || "").trim())
+          throw Error("A lot number is required for this product.");
+        if (product?.requiresExpiry && !v.get("expiry"))
+          throw Error("An expiry date is required for this product.");
+        if (isSerialized && serialNumbers.length !== qty)
+          throw Error("Provide one serial number per unit.");
+        result = await api(
+          `/v1/purchase-orders/${encodeURIComponent(po.id)}/receive`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              lines: [
+                {
+                  purchaseOrderLineId: line.id,
+                  receivedQty: qty,
+                  lots: requiresLot
+                    ? [
+                        {
+                          lotNumber: String(v.get("lot")).trim(),
+                          quantity: qty,
+                          expiryDate: v.get("expiry") || undefined,
+                        },
+                      ]
+                    : [],
+                  serialNumbers: isSerialized ? serialNumbers : [],
+                },
+              ],
+              additionalCosts: Number(v.get("additionalCosts") || 0),
+            }),
+          },
+        );
+        break;
+      }
       case "adjustment-form":
         result = await api("/v1/inventory/adjustments", {
           method: "POST",
@@ -886,7 +1144,7 @@ root.addEventListener("change", (event) => {
 });
 root.addEventListener("click", async (event) => {
   const target = event.target.closest(
-    "[data-page],[data-action],[data-modal],[data-add],[data-qty]",
+    "[data-page],[data-action],[data-modal],[data-add],[data-qty],[data-approve],[data-receive]",
   );
   if (!target) return;
   if (target.dataset.page) {
@@ -898,6 +1156,27 @@ root.addEventListener("click", async (event) => {
   }
   if (target.dataset.modal) {
     openModal(target.dataset.modal);
+    return;
+  }
+  if (target.dataset.receive) {
+    state.selectedOrder = target.dataset.receive;
+    openModal("receipt");
+    return;
+  }
+  if (target.dataset.approve) {
+    if (state.demo) return toast("Demo mode is read-only.", true);
+    if (!confirm("Approve this purchase order?")) return;
+    try {
+      await api(
+        `/v1/purchase-orders/${encodeURIComponent(target.dataset.approve)}/approve`,
+        { method: "POST" },
+      );
+      await load();
+      render();
+      toast("Purchase order approved");
+    } catch (err) {
+      toast(err.message, true);
+    }
     return;
   }
   if (target.dataset.add) {
