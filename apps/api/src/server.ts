@@ -4,6 +4,8 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { config, corsOrigins } from './lib/config.js';
 import { prisma } from './lib/prisma.js';
 import { AppError } from './lib/errors.js';
@@ -42,6 +44,22 @@ await app.register(cors, {
   credentials: true
 });
 await app.register(rateLimit, { max: 300, timeWindow: '1 minute' });
+
+// Serve the POS shell from the same origin as the API. The shell is public;
+// all merchant data and mutations still require a verified Hub bearer token.
+const publicRoot = join(process.cwd(), 'apps/api/public');
+for (const [route, filename, mime] of [
+  ['/', 'index.html', 'text/html; charset=utf-8'],
+  ['/app.css', 'app.css', 'text/css; charset=utf-8'],
+  ['/app.js', 'app.js', 'text/javascript; charset=utf-8'],
+  ['/favicon.svg', 'favicon.svg', 'image/svg+xml']
+] as const) {
+  app.get(route, async (_request, reply) => {
+    reply.header('content-type', mime);
+    reply.header('cache-control', 'no-store');
+    return readFile(join(publicRoot, filename));
+  });
+}
 
 app.get('/health', async () => ({ status: 'ok', service: 'v79-commerce-api', version: '1.0.0-rc.1' }));
 app.get('/ready', async (_request, reply) => {

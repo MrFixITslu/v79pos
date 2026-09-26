@@ -13,6 +13,8 @@ V79 POS follows the same Docker/Nginx Proxy Manager pattern as the other V79 app
 - Only Docker network: `proxy_network`
 - Public URL: `https://pos.v79sl.com`
 
+The URL now serves a browser workspace. Its **Explore demo** option is read-only sample data. Live data requires a Hub-issued short-lived JWT for audience `v79-commerce`, a tenant membership provisioned by the Hub, and a register. The beta integration form accepts an issued POS access token and Hub organisation ID for testing; the token is held only in memory and is cleared on refresh. For production launch, Hub must provide the authenticated token handoff when opening POS. A link to the Hub sign-in page alone cannot supply a POS token across browser origins.
+
 The API is **not** published directly to a host port. Nginx Proxy Manager reaches it over `proxy_network`.
 
 For backward compatibility with the Hub, the API also keeps the Docker DNS alias `v79-commerce-api`.
@@ -75,6 +77,7 @@ docker compose ps
 docker inspect v79-pos --format '{{json .NetworkSettings.Networks}}'
 docker exec v79-pos wget -qO- http://127.0.0.1:8080/health
 docker exec v79-pos wget -qO- http://127.0.0.1:8080/ready
+docker exec v79-pos wget -qO- http://127.0.0.1:8080/ | head
 ```
 
 Expected Nginx route:

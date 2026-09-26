@@ -4,9 +4,9 @@
 
 V79 Commerce is a multi-tenant commerce operating system: V79 POS at the register, backed by inventory, purchasing, supplier management, logistics, predictive replenishment, customers, fulfilment, workforce controls and integration events for Vision79 Hub, FFPRO2 and V79Marketing.
 
-## Backend release candidate 1.0.0-rc.1
+## Beta workspace
 
-The backend scope is implemented as a modular TypeScript/Fastify service using PostgreSQL/Prisma plus a scheduled worker. The design/UI remains a separate milestone because the connected Figma Starter plan reached its MCP tool-call limit.
+The TypeScript/Fastify service now serves a responsive browser interface from the same origin as the API. Its beta screens cover checkout, register sessions, catalogue, inventory, customers, sales history, suppliers, purchase orders and replenishment. The read-only demo uses labelled sample data. Live mutations still require a verified Hub POS JWT and an active tenant membership.
 
 ### Implemented
 
@@ -91,6 +91,6 @@ These are deployment/integration inputs, not missing domain architecture:
 - Actual WiPay/Stripe/card-terminal provider credentials and provider-specific adapter implementation/testing
 - FFPRO2/V79Marketing/Hub endpoint URLs and shared webhook secrets
 - SMTP/SMS/push provider configuration if those delivery channels are enabled
-- Figma/UI implementation and end-to-end device/payment beta testing
+- Hub launch handoff integration and end-to-end device/payment beta testing
 
 See `docs/IMPLEMENTATION_STATUS.md`, `docs/API.md`, `docs/SECURITY.md` and `docs/RELEASE_READINESS.md`.
