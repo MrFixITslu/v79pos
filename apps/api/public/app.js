@@ -870,6 +870,22 @@ async function connect(token, tenant) {
     toast(`Could not connect: ${err.message}`, true);
   }
 }
+// A Hub popup can transfer its short-lived POS JWT without putting it in a URL.
+// The API still verifies issuer, audience, signature and active membership.
+const hubOrigin = "https://hub.v79sl.com";
+window.addEventListener("message", (event) => {
+  if (event.origin !== hubOrigin || event.source !== window.opener) return;
+  const data = event.data;
+  if (
+    data?.type === "v79-pos-auth" &&
+    typeof data.accessToken === "string" &&
+    typeof data.tenantId === "string"
+  ) {
+    connect(data.accessToken, data.tenantId);
+  }
+});
+if (window.opener)
+  window.opener.postMessage({ type: "v79-pos-ready" }, hubOrigin);
 const params = new URLSearchParams(location.hash.replace(/^#/, ""));
 if (params.has("access_token")) {
   const token = params.get("access_token"),
