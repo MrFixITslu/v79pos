@@ -1,3 +1,5 @@
+name: v79pos-dev
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -7,6 +9,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_local_only}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - proxy_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U v79commerce -d v79commerce"]
       interval: 5s
@@ -19,6 +23,8 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    networks:
+      - proxy_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -40,6 +46,8 @@ services:
     command: ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node apps/api/dist/server.js"]
     ports:
       - "8080:8080"
+    networks:
+      - proxy_network
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 15s
@@ -57,7 +65,14 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      - proxy_network
     restart: unless-stopped
+
+networks:
+  proxy_network:
+    external: true
+    name: ${PROXY_NETWORK:-proxy_network}
 
 volumes:
   postgres_data:
