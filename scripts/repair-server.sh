@@ -5,12 +5,7 @@ ENV_FILE="${ENV_FILE:-.env}"
 HUB_ENV="${HUB_ENV:-$HOME/v79hub/.env}"
 
 if [ ! -f "$ENV_FILE" ]; then
-  if [ -f ".env.production.example" ]; then
-    cp .env.production.example "$ENV_FILE"
-  else
-    echo "Missing $ENV_FILE and .env.production.example" >&2
-    exit 1
-  fi
+  cp .env.production.example "$ENV_FILE"
 fi
 
 python3 - "$ENV_FILE" "$HUB_ENV" <<'PY'
@@ -28,11 +23,11 @@ def read_env(path):
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
-        k, v = line.split("=", 1)
-        v = v.strip()
-        if len(v) >= 2 and v[0] == v[-1] and v[0] in {"'", '"'}:
-            v = v[1:-1]
-        data[k.strip()] = v
+        key, value = line.split("=", 1)
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        data[key.strip()] = value
     return data
 
 def write_env(path, updates):
@@ -75,9 +70,10 @@ PY
 POSTGRES_PASSWORD="$(python3 - "$ENV_FILE" <<'PY'
 from pathlib import Path
 import sys
+
 for raw in Path(sys.argv[1]).read_text().splitlines():
     if raw.startswith("POSTGRES_PASSWORD="):
-        value = raw.split("=",1)[1].strip()
+        value = raw.split("=", 1)[1].strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
             value = value[1:-1]
         print(value, end="")
@@ -85,8 +81,13 @@ for raw in Path(sys.argv[1]).read_text().splitlines():
 PY
 )"
 
-if [ -z "$POSTGRES_PASSWORD" ] || printf '%s' "$POSTGRES_PASSWORD" | grep -Eiq 'REPLACE_|change[_-]?me|replace-with'; then
-  echo "POSTGRES_PASSWORD in $ENV_FILE is missing or still a placeholder." >&2
+if [ -z "$POSTGRES_PASSWORD" ]; then
+  echo "POSTGRES_PASSWORD is missing from $ENV_FILE" >&2
+  exit 1
+fi
+
+if printf '%s' "$POSTGRES_PASSWORD" | grep -Eiq 'REPLACE_|change[_-]?me|replace-with'; then
+  echo "POSTGRES_PASSWORD is still a placeholder in $ENV_FILE" >&2
   exit 1
 fi
 
@@ -96,11 +97,15 @@ fi
 
 docker compose --env-file "$ENV_FILE" up -d postgres redis
 
-echo "Synchronizing PostgreSQL role password with $ENV_FILE..."
-docker exec -u postgres v79-pos-db   psql -d v79commerce -v ON_ERROR_STOP=1   -v new_password="$POSTGRES_PASSWORD"   -c "ALTER ROLE v79commerce WITH PASSWORD :'new_password';"
+echo "Synchronizing PostgreSQL role password..."
+python3 - "$POSTGRES_PASSWORD" <<'PY' | docker exec -i -u postgres v79-pos-db psql -U v79commerce -d v79commerce -v ON_ERROR_STOP=1
+import sys
+password = sys.argv[1].replace("'", "''")
+print(f"ALTER ROLE v79commerce WITH PASSWORD '{password}';")
+PY
 
 echo "Running Prisma migrations..."
-docker compose --env-file "$ENV_FILE" run --rm migrate   ./node_modules/.bin/prisma migrate deploy
+docker compose --env-file "$ENV_FILE" run --rm migrate ./node_modules/.bin/prisma migrate deploy
 
 echo "Starting V79 POS..."
 docker compose --env-file "$ENV_FILE" up -d --build
