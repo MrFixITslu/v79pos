@@ -66,6 +66,7 @@ services:
       DATABASE_URL: postgresql://v79commerce:${POSTGRES_PASSWORD}@postgres:5432/v79commerce?schema=public
       REDIS_URL: redis://redis:6379
       TRUST_PROXY: ${TRUST_PROXY:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://pos.v79sl.com}
     depends_on:
       migrate:
         condition: service_completed_successfully
