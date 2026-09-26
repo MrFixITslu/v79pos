@@ -36,7 +36,7 @@ jobs:
           JWT_ISSUER=https://hub.v79sl.com
           JWT_AUDIENCE=v79-commerce
           HUB_JWKS_URL=https://hub.v79sl.com/.well-known/jwks.json
-          CORS_ORIGINS=https://commerce.v79sl.com
+          CORS_ORIGINS=https://pos.v79sl.com
           REPLENISHMENT_INTERVAL_MINUTES=60
           LOG_LEVEL=info
           TRUST_PROXY=true
@@ -45,17 +45,17 @@ jobs:
           PROXY_NETWORK=proxy_network
           EOF
           docker network inspect proxy_network >/dev/null 2>&1 || docker network create proxy_network
-          docker compose -f docker-compose.prod.yml config >/dev/null
-          docker compose -f docker-compose.prod.yml up -d --build
+          docker compose -f docker-compose.yml config >/dev/null
+          docker compose -f docker-compose.yml up -d --build
           for i in $(seq 1 45); do
-            if docker compose -f docker-compose.prod.yml exec -T api wget -qO- http://127.0.0.1:8080/ready >/dev/null 2>&1; then
+            if docker compose -f docker-compose.yml exec -T api wget -qO- http://127.0.0.1:8080/ready >/dev/null 2>&1; then
               exit 0
             fi
             sleep 2
           done
-          docker compose -f docker-compose.prod.yml ps
-          docker compose -f docker-compose.prod.yml logs --no-color api migrate
+          docker compose -f docker-compose.yml ps
+          docker compose -f docker-compose.yml logs --no-color api migrate
           exit 1
       - name: Tear down production Compose stack
         if: always()
-        run: docker compose -f docker-compose.prod.yml down -v --remove-orphans || true
+        run: docker compose -f docker-compose.yml down -v --remove-orphans || true

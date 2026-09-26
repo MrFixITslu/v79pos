@@ -2,7 +2,7 @@
 set -eu
 
 ENV_FILE="${ENV_FILE:-.env}"
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "Missing $ENV_FILE. Copy .env.production.example to .env and replace every placeholder." >&2
@@ -28,7 +28,7 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build --pull
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
 
 echo
-echo "V79 Commerce services:"
+echo "V79 POS services:"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 echo
-echo "Configure Nginx Proxy Manager to proxy commerce.v79sl.com to v79-commerce-api:8080 on $proxy_network."
+echo "Nginx Proxy Manager: pos.v79sl.com -> http://v79-pos:8080 on $proxy_network"

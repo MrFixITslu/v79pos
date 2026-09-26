@@ -1,12 +1,17 @@
+name: v79pos
+
 services:
   postgres:
     image: postgres:17-alpine
+    container_name: v79-pos-db
     environment:
       POSTGRES_DB: v79commerce
       POSTGRES_USER: v79commerce
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - v79pos_internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U v79commerce -d v79commerce"]
       interval: 5s
@@ -16,9 +21,12 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: v79-pos-redis
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    networks:
+      - v79pos_internal
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -27,7 +35,11 @@ services:
     restart: unless-stopped
 
   migrate:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: v79pos:latest
+    container_name: v79-pos-migrate
     env_file: .env
     environment:
       NODE_ENV: production
@@ -36,35 +48,54 @@ services:
       postgres:
         condition: service_healthy
     command: ["sh", "-c", "./node_modules/.bin/prisma migrate deploy"]
+    networks:
+      - v79pos_internal
     restart: "no"
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: v79pos:latest
+    container_name: v79-pos
+    init: true
     env_file: .env
     environment:
       NODE_ENV: production
+      PORT: 8080
       DATABASE_URL: postgresql://v79commerce:${POSTGRES_PASSWORD}@postgres:5432/v79commerce?schema=public
       REDIS_URL: redis://redis:6379
+      TRUST_PROXY: ${TRUST_PROXY:-true}
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
     command: ["node", "apps/api/dist/server.js"]
+    expose:
+      - "8080"
     networks:
-      default:
+      v79pos_internal:
       proxy_network:
         aliases:
           - v79-commerce-api
+          - v79-pos
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/ready"]
       interval: 15s
       timeout: 5s
       retries: 10
+      start_period: 20s
     restart: unless-stopped
 
   worker:
-    build: .
+    image: v79pos:latest
+    container_name: v79-pos-worker
+    init: true
     env_file: .env
     environment:
       NODE_ENV: production
@@ -74,13 +105,24 @@ services:
       api:
         condition: service_healthy
     command: ["node", "apps/api/dist/worker.js"]
+    networks:
+      - v79pos_internal
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: unless-stopped
 
 networks:
+  v79pos_internal:
+    name: v79pos_internal
+    internal: true
   proxy_network:
     external: true
     name: ${PROXY_NETWORK:-proxy_network}
 
 volumes:
   postgres_data:
+    name: v79pos_postgres_data
   redis_data:
+    name: v79pos_redis_data
