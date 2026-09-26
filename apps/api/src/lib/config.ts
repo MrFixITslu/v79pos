@@ -25,6 +25,7 @@ if (parsed.NODE_ENV === 'production') {
   if (looksLikePlaceholder(parsed.GIFT_CARD_PEPPER)) throw new Error('GIFT_CARD_PEPPER must be changed in production');
   if (looksLikePlaceholder(parsed.ENCRYPTION_KEY)) throw new Error('ENCRYPTION_KEY must be changed in production');
   if (!parsed.CORS_ORIGINS.trim()) throw new Error('CORS_ORIGINS must be explicitly configured in production');
+  if (!parsed.V79_PLATFORM_SHARED_SECRET.trim() || looksLikePlaceholder(parsed.V79_PLATFORM_SHARED_SECRET)) throw new Error('V79_PLATFORM_SHARED_SECRET must be configured in production');
 }
 export const config = parsed;
 export const corsOrigins = config.CORS_ORIGINS.split(',').map(v => v.trim()).filter(Boolean);
