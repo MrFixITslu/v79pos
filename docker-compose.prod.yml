@@ -107,6 +107,7 @@ services:
     command: ["node", "apps/api/dist/worker.js"]
     networks:
       - v79pos_internal
+      - proxy_network
     security_opt:
       - no-new-privileges:true
     cap_drop:
